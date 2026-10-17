@@ -26,7 +26,9 @@ async function mesurer($: EngineInterface) {
 // Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
 function enClair(ms: number) {
   const s = Math.round(ms / 1000)
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`
+  if (s < 60) return `${s} s`
+  if (s < 3600) return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`
+  return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`
 }
 
 export const register: Register = on => {
@@ -63,9 +65,14 @@ export const register: Register = on => {
     }
     const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
     const quota = m?.quota != null ? ` · quota 5 h : ${m.quota} %` : ''
-    const tour = debutDuTour > 0 ? ` · ce tour : ${enClair((await $.clock.now()) - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
+    const maintenant = await $.clock.now()
+    const { startedAt, rateLimits, cost } = await $.session.usage()
+    const septJours = rateLimits.find(r => r.kind === 'seven_day')
+    const semaine = septJours ? ` · quota 7 j : ${septJours.percentUsed} %` : ''
+    const tour = debutDuTour > 0 ? ` · ce tour : ${enClair(maintenant - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
+    const session = ` · session : ${enClair(maintenant - startedAt)}${cost ? `, ${cost.usd.toFixed(2)} $` : ''}`
     const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
-    return next({ ...e, text: `${texte}\n\n_📊 Jauge : fil rempli à ${fil}${quota}${tour}${alerte}_` })
+    return next({ ...e, text: `${texte}\n\n_📊 Jauge : fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
