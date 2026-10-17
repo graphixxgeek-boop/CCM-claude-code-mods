@@ -23,6 +23,9 @@ async function mesurer($: EngineInterface) {
   }
 }
 
+// Claude Code donne les quotas avec une décimale au plus : on l'affiche toujours, jamais une de plus.
+const uneDecimale = (n: number) => n.toFixed(1).replace('.', ',')
+
 // Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
 function enClair(ms: number) {
   const s = Math.round(ms / 1000)
@@ -64,15 +67,15 @@ export const register: Register = on => {
       return next(e)
     }
     const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
-    const quota = m?.quota != null ? ` · quota 5 h : ${m.quota} %` : ''
+    const quota = m?.quota != null ? ` · quota 5 h : ${uneDecimale(m.quota)} %` : ''
     const maintenant = await $.clock.now()
     const { startedAt, rateLimits, cost } = await $.session.usage()
     const septJours = rateLimits.find(r => r.kind === 'seven_day')
-    const semaine = septJours ? ` · quota 7 j : ${septJours.percentUsed} %` : ''
+    const semaine = septJours ? ` · quota 7 j : ${uneDecimale(septJours.percentUsed)} %` : ''
     const tour = debutDuTour > 0 ? ` · ce tour : ${enClair(maintenant - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
     const session = ` · session : ${enClair(maintenant - startedAt)}${cost ? `, ${cost.usd.toFixed(2)} $` : ''}`
     const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
-    return next({ ...e, text: `${texte}\n\n_📊 Jauge : fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
+    return next({ ...e, text: `${texte}\n\n🔵 _📊 Jauge : fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
