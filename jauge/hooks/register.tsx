@@ -36,6 +36,20 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e))
 
+  // Dans l'app Projets, la personne ne voit pas la barre : seuls les messages des fils lui
+  // parviennent. La jauge y ajoute donc une ligne, lue gratuitement, en bas de chaque message.
+  on('tool.call', { tool: 'mcp__hearthbot__reply' }, async ($, e, next) => {
+    await mesurer($)
+    const m = await read($, mesure)
+    const texte = (e as { text?: unknown }).text
+    if (m === null || m.percent === null || typeof texte !== 'string' || texte.includes('📊 Jauge')) {
+      return next(e)
+    }
+    const quota = m.quota !== null ? ` · quota 5 h : ${m.quota} %` : ''
+    const alerte = m.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
+    return next({ ...e, text: `${texte}\n\n<sub>📊 Jauge : fil rempli à ${m.percent} %${quota}${alerte}</sub>` })
+  }).catch(($, e, next) => next(e))
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const m = await read($, mesure)
     if (e.props.hasSurvey || m === null || m.percent === null || (await read($, cachee))) {
