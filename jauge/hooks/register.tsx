@@ -63,7 +63,7 @@ export const register: Register = on => {
     await mesurer($)
     const m = await read($, mesure)
     const texte = (e as { text?: unknown }).text
-    if (typeof texte !== 'string' || texte.includes('📊 Jauge')) {
+    if (typeof texte !== 'string' || texte.includes('🚨 _fil rempli')) {
       return next(e)
     }
     const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
@@ -75,7 +75,7 @@ export const register: Register = on => {
     const tour = debutDuTour > 0 ? ` · ce tour : ${enClair(maintenant - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
     const session = ` · session : ${enClair(maintenant - startedAt)}${cost ? `, ${cost.usd.toFixed(2)} $` : ''}`
     const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
-    return next({ ...e, text: `${texte}\n\n🔵 _📊 Jauge : fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
+    return next({ ...e, text: `${texte}\n\n🚨 _fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
