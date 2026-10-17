@@ -23,8 +23,8 @@ async function mesurer($: EngineInterface) {
   }
 }
 
-// Claude Code donne les quotas avec une décimale au plus : on l'affiche toujours, jamais une de plus.
-const uneDecimale = (n: number) => n.toFixed(1).replace('.', ',')
+// Claude Code donne les quotas avec une décimale au plus, souvent aucune : on montre celle qu'il donne, jamais un « ,0 » ajouté.
+const uneDecimale = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','))
 
 // Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
 function enClair(ms: number) {
