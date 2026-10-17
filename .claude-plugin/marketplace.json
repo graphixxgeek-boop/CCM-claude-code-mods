@@ -1,0 +1,11 @@
+{
+  "name": "ccm-claude-code-mods",
+  "owner": { "name": "graphixxgeek-boop" },
+  "plugins": [
+    { "name": "jauge", "source": "./jauge" },
+    { "name": "chrono", "source": "./chrono" },
+    { "name": "sonnette", "source": "./sonnette" },
+    { "name": "garde-fou", "source": "./garde-fou" },
+    { "name": "bilan", "source": "./bilan" }
+  ]
+}

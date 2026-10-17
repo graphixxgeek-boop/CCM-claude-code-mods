@@ -1,0 +1,1 @@
+{ "name": "garde-fou", "version": "0.1.0", "description": "Refuse les commandes qui ne se défont pas : adresse distante git, poussée forcée, suppression massive" }
