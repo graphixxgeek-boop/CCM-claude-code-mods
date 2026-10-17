@@ -23,7 +23,24 @@ async function mesurer($: EngineInterface) {
   }
 }
 
+// Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
+function enClair(ms: number) {
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s} s`
+  if (s < 3600) return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`
+  return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`
+}
+
 export const register: Register = on => {
+  let debutDuTour = 0
+  let actions = 0
+
+  on('prompt.submit', async ($, e, next) => {
+    debutDuTour = await $.clock.now()
+    actions = 0
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
   on('turn.complete', async ($, e, next) => {
     const ran = await next(e)
     await mesurer($)
@@ -31,9 +48,31 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
+    if (!e.tool.startsWith('mcp__hearthbot__')) actions += 1
     const ran = await next(e)
     await mesurer($)
     return ran
+  }).catch(($, e, next) => next(e))
+
+  // Dans l'app Projets, la personne ne voit pas la barre : seuls les messages des fils lui
+  // parviennent. La jauge y ajoute donc une ligne, lue gratuitement, en bas de chaque message.
+  on('tool.call', { tool: 'mcp__hearthbot__reply' }, async ($, e, next) => {
+    await mesurer($)
+    const m = await read($, mesure)
+    const texte = (e as { text?: unknown }).text
+    if (typeof texte !== 'string' || texte.includes('📊 Jauge')) {
+      return next(e)
+    }
+    const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
+    const quota = m?.quota != null ? ` · quota 5 h : ${m.quota} %` : ''
+    const maintenant = await $.clock.now()
+    const { startedAt, rateLimits, cost } = await $.session.usage()
+    const septJours = rateLimits.find(r => r.kind === 'seven_day')
+    const semaine = septJours ? ` · quota 7 j : ${septJours.percentUsed} %` : ''
+    const tour = debutDuTour > 0 ? ` · ce tour : ${enClair(maintenant - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
+    const session = ` · session : ${enClair(maintenant - startedAt)}${cost ? `, ${cost.usd.toFixed(2)} $` : ''}`
+    const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
+    return next({ ...e, text: `${texte}\n\n_📊 Jauge : fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
