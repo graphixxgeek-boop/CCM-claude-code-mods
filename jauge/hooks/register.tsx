@@ -23,7 +23,22 @@ async function mesurer($: EngineInterface) {
   }
 }
 
+// Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
+function enClair(ms: number) {
+  const s = Math.round(ms / 1000)
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`
+}
+
 export const register: Register = on => {
+  let debutDuTour = 0
+  let actions = 0
+
+  on('prompt.submit', async ($, e, next) => {
+    debutDuTour = await $.clock.now()
+    actions = 0
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
   on('turn.complete', async ($, e, next) => {
     const ran = await next(e)
     await mesurer($)
@@ -31,6 +46,7 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
+    if (!e.tool.startsWith('mcp__hearthbot__')) actions += 1
     const ran = await next(e)
     await mesurer($)
     return ran
@@ -42,12 +58,14 @@ export const register: Register = on => {
     await mesurer($)
     const m = await read($, mesure)
     const texte = (e as { text?: unknown }).text
-    if (m === null || m.percent === null || typeof texte !== 'string' || texte.includes('📊 Jauge')) {
+    if (typeof texte !== 'string' || texte.includes('📊 Jauge')) {
       return next(e)
     }
-    const quota = m.quota !== null ? ` · quota 5 h : ${m.quota} %` : ''
-    const alerte = m.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
-    return next({ ...e, text: `${texte}\n\n<sub>📊 Jauge : fil rempli à ${m.percent} %${quota}${alerte}</sub>` })
+    const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
+    const quota = m?.quota != null ? ` · quota 5 h : ${m.quota} %` : ''
+    const tour = debutDuTour > 0 ? ` · ce tour : ${enClair((await $.clock.now()) - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
+    const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
+    return next({ ...e, text: `${texte}\n\n_📊 Jauge : fil rempli à ${fil}${quota}${tour}${alerte}_` })
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
