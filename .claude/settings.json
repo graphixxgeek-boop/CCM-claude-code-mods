@@ -1,0 +1,17 @@
+{
+  "enabledPlugins": {
+    "jauge@ccm-claude-code-mods": true,
+    "chrono@ccm-claude-code-mods": true,
+    "sonnette@ccm-claude-code-mods": true,
+    "garde-fou@ccm-claude-code-mods": true,
+    "bilan@ccm-claude-code-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "ccm-claude-code-mods": {
+      "source": {
+        "source": "github",
+        "repo": "graphixxgeek-boop/CCM-claude-code-mods"
+      }
+    }
+  }
+}

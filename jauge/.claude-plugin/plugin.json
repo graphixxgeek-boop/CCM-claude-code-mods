@@ -1,0 +1,1 @@
+{ "name": "jauge", "version": "0.1.0", "description": "Jauge du contexte et du quota, au-dessus de la zone de saisie", "types": "./types/index.d.ts" }
