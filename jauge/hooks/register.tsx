@@ -26,6 +26,13 @@ async function mesurer($: EngineInterface) {
 // Claude Code donne les quotas avec une décimale au plus, souvent aucune : on montre celle qu'il donne, jamais un « ,0 » ajouté.
 const uneDecimale = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','))
 
+// Un nombre de tokens en clair : 850, 12 k, 3,4 M.
+function tokensEnClair(n: number) {
+  if (n < 1000) return String(n)
+  if (n < 1_000_000) return `${Math.round(n / 1000)} k`
+  return `${(n / 1_000_000).toFixed(1).replace('.', ',')} M`
+}
+
 // Une durée = l'écart de deux heures LUES sur l'horloge du moteur, jamais une impression.
 function enClair(ms: number) {
   const s = Math.round(ms / 1000)
@@ -37,12 +44,27 @@ function enClair(ms: number) {
 export const register: Register = on => {
   let debutDuTour = 0
   let actions = 0
+  // Tokens réellement traités, tels que l'API les compte à chaque requête (entrée, sortie, cache).
+  let tokensTour = 0
+  let tokensSession = 0
 
   on('prompt.submit', async ($, e, next) => {
     debutDuTour = await $.clock.now()
     actions = 0
+    tokensTour = 0
     return next(e)
   }).catch(($, e, next) => next(e))
+
+  on('turn.step', async function* ($, e, next) {
+    const r = yield* next(e)
+    const u = r?.usage
+    if (u) {
+      const n = u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+      tokensTour += n
+      tokensSession += n
+    }
+    return r
+  })
 
   on('turn.complete', async ($, e, next) => {
     const ran = await next(e)
@@ -69,11 +91,12 @@ export const register: Register = on => {
     const fil = m?.percent != null ? `${m.percent} %` : 'pas encore mesuré'
     const quota = m?.quota != null ? ` · quota 5 h : ${uneDecimale(m.quota)} %` : ''
     const maintenant = await $.clock.now()
-    const { startedAt, rateLimits, cost } = await $.session.usage()
+    const { startedAt, rateLimits } = await $.session.usage()
     const septJours = rateLimits.find(r => r.kind === 'seven_day')
     const semaine = septJours ? ` · quota 7 j : ${uneDecimale(septJours.percentUsed)} %` : ''
     const tour = debutDuTour > 0 ? ` · ce tour : ${enClair(maintenant - debutDuTour)}, ${actions} action${actions > 1 ? 's' : ''}` : ''
-    const session = ` · session : ${enClair(maintenant - startedAt)}${cost ? `, ${cost.usd.toFixed(2)} $` : ''}`
+    const tokens = tokensSession > 0 ? ` · tokens : ce tour ${tokensEnClair(tokensTour)}, session ${tokensEnClair(tokensSession)}` : ''
+    const session = ` · session : ${enClair(maintenant - startedAt)}${tokens}`
     const alerte = m?.alerte ? ' · ⚠️ pensez à un fil neuf' : ''
     return next({ ...e, text: `${texte}\n\n🚨 _fil rempli à ${fil}${quota}${semaine}${tour}${session}${alerte}_` })
   }).catch(($, e, next) => next(e))
