@@ -8,6 +8,8 @@ const cachee = atom({ plugin: 'jauge', key: 'cachee' } as const, false)
 
 const SEUIL_ALERTE = 85
 const CASES = 10
+// Les outils dont le texte arrive tel quel à la personne, dans son fil.
+const OUTILS_DE_REPONSE = ['mcp__hearthbot__post_message', 'mcp__hearthbot__reply']
 
 // Relit la vraie mesure du moteur, jamais une estimation (heures et chiffres lus, jamais tapés).
 async function mesurer($: EngineInterface) {
@@ -81,7 +83,9 @@ export const register: Register = on => {
 
   // Dans l'app Projets, la personne ne voit pas la barre : seuls les messages des fils lui
   // parviennent. La jauge y ajoute donc une ligne, lue gratuitement, en bas de chaque message.
-  on('tool.call', { tool: 'mcp__hearthbot__reply' }, async ($, e, next) => {
+  // L'outil de réponse a changé de nom (reply, puis post_message) : on accroche tous les noms
+  // connus, sinon la ligne disparaît sans bruit au prochain renommage.
+  for (const outil of OUTILS_DE_REPONSE) on('tool.call', { tool: outil }, async ($, e, next) => {
     await mesurer($)
     const m = await read($, mesure)
     const texte = (e as { text?: unknown }).text
